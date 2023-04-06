@@ -14,38 +14,56 @@ import (
 const empty = ""
 
 func main() {
+
+	// Парсинг флагов
 	src := flag.String("src", empty, "path to URL")
-	dest := flag.String("dest", ".", "path to output directory")
+	dest := flag.String("dest", empty, "path to output directory")
 	flag.Parse()
 	if *src == empty {
 		fmt.Println("missing src flag")
-		return
+		os.Exit(1)
 	}
- 	bs, err := ioutil.ReadFile(*src)
+	if *dest == empty {
+		fmt.Println("missing dest flag")
+		os.Exit(1)
+	}
+	// Чтение файла
+	bs, err := ioutil.ReadFile(*src)
 	if err != nil {
 		fmt.Println(err)
-		return
+		os.Exit(1)
 	}
+	// Открытие директории
 	outputDir, err := os.Open(*dest)
 	if err != nil {
 		fmt.Println(err)
-		return
+		os.Exit(1)
 	}
 	defer outputDir.Close()
+	// Парсинг файла (срезом)
 	urls := strings.Split(string(bs), "\n")
+	// Цикл по срезу
 	for i, url := range urls {
+		if !(strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://")) {
+			url = "http://" + url
+		}
+		// HTTP-запрос
 		resp, err := http.Get(url)
 		if err != nil {
 			fmt.Println(err)
-			return
+			fmt.Println(url, "- not ok")
+			continue
 		}
 		defer resp.Body.Close()
-		out, err := os.Create(outputDir.Name() + "/" + strconv.Itoa(i) + ".txt")
+		// Создание файла
+		out, err := os.Create(outputDir.Name() + "/" + strconv.Itoa(i) + ".html")
 		if err != nil {
 			fmt.Println(err)
-			return
+			os.Exit(1)
 		}
 		defer out.Close()
+		// Запись в файл
 		io.Copy(out, resp.Body)
+		fmt.Println(url, "- ok")
 	}
 }
